@@ -1,0 +1,8 @@
+# ignora il file troppo grande
+src/main/resources/gtfs_static/stop_times.txt
+target/classes/gtfs_static/stop_times.txt
+stop_times.txt
+resources/
+
+# ignora cartelle di build Maven
+/target/
