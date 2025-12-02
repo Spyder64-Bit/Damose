@@ -1,4 +1,4 @@
-# 🚌 Rome Bus Tracker
+# 🚌 Damose - Rome Bus Tracker
 
 A real-time bus tracking application for Rome's public transit system, built with Java Swing and GTFS-RT data.
 
@@ -15,20 +15,24 @@ A real-time bus tracking application for Rome's public transit system, built wit
 - **Real-Time Bus Tracking** — Live bus positions on an interactive map using GTFS-RT feeds from Roma Mobilità
 - **Arrival Predictions** — View upcoming arrivals at any stop with real-time delay/early status
 - **Interactive Map** — Pan, zoom, and click on stops to see arrival information
-- **Stop & Line Search** — Find stops by name or search for specific bus lines
+- **Route Visualization** — Select a bus line to see its complete route highlighted on the map
+- **Stop & Line Search** — Spotlight-style search to find stops by name or search for specific bus lines
+- **User Accounts** — Optional login/registration with SQLite database
 - **Offline Mode** — Fallback to static schedule data when real-time feeds are unavailable
-- **Modern Dark UI** — Sleek interface powered by FlatLaf with smooth fade animations
+- **Modern Dark UI** — Sleek midnight-dark interface powered by FlatLaf with smooth fade animations
 
 ## 📸 How It Works
 
-1. **Map View** — The main window displays an interactive map of Rome centered on the city
-2. **Bus Icons** — Real-time bus positions are displayed as markers on the map
-3. **Stop Markers** — Click on any bus stop to see upcoming arrivals
-4. **Floating Panel** — Arrivals appear in a tooltip-style panel showing:
+1. **Login** — Optional login screen (skip to continue without account)
+2. **Loading** — Animated loading screen shows GTFS data initialization and RT connection status
+3. **Map View** — The main window displays an interactive map of Rome
+4. **Bus Icons** — Real-time bus positions are displayed as markers on the map
+5. **Stop Markers** — Click on any bus stop to see upcoming arrivals
+6. **Floating Panel** — Arrivals appear in a tooltip-style panel showing:
    - 🔴 Red dot = Bus is delayed
    - 🟢 Green dot = Bus is on time or early
-   - ⚪ White dot = Static schedule (no real-time data)
-5. **Search** — Use the search button (🔍) to find stops or lines
+   - ⚪ Gray dot = Static schedule (no real-time data)
+7. **Search** — Use the search button (🔍) to find stops or lines with Tab to switch modes
 
 ## 🛠️ Tech Stack
 
@@ -39,6 +43,7 @@ A real-time bus tracking application for Rome's public transit system, built wit
 | **JXMapViewer2** | Interactive map rendering |
 | **GTFS-RT Bindings** | Real-time transit data parsing |
 | **Protocol Buffers** | Binary data serialization |
+| **SQLite** | Local database for user accounts |
 | **Apache Commons CSV** | GTFS static file parsing |
 | **FlatLaf** | Modern look-and-feel theme |
 | **Gson** | JSON processing |
@@ -54,8 +59,8 @@ A real-time bus tracking application for Rome's public transit system, built wit
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/rome-bus-tracker.git
-cd rome-bus-tracker
+git clone https://github.com/yourusername/damose.git
+cd damose
 
 # Build the project
 mvn clean compile
@@ -64,54 +69,84 @@ mvn clean compile
 mvn exec:java
 ```
 
-Or run directly:
-
-```bash
-mvn exec:java -Dexec.mainClass="project_starter.RealTimeBusTrackerApp"
-```
-
 ## 📁 Project Structure
 
 ```
-src/main/
-├── java/project_starter/
-│   ├── RealTimeBusTrackerApp.java    # Application entry point
-│   ├── controller/
-│   │   ├── RealTimeBusTrackerController.java  # Main controller
-│   │   ├── ArrivalService.java       # Arrival time calculations
-│   │   └── GestoreRealTime.java      # GTFS-RT feed management
-│   ├── datas/
-│   │   ├── StopsLoader.java          # GTFS stops.txt parser
-│   │   ├── TripsLoader.java          # GTFS trips.txt parser
-│   │   ├── StopTimesLoader.java      # GTFS stop_times.txt parser
-│   │   ├── CalendarLoader.java       # Service calendar parsing
-│   │   ├── TripMatcher.java          # Trip ID matching logic
-│   │   └── ...                       # Other data utilities
-│   ├── model/
-│   │   ├── GTFSFetcher.java          # GTFS-RT feed parsing
-│   │   ├── VehiclePosition.java      # Bus position model
-│   │   ├── StaticSimulator.java      # Offline mode simulation
-│   │   └── ...                       # Other models
-│   ├── view/
-│   │   ├── RealTimeBusTrackerView.java  # Main window
-│   │   ├── FloatingArrivalPanel.java    # Arrival tooltip UI
-│   │   ├── StopSearchPanel.java         # Search sidebar
-│   │   ├── MapFactory.java              # Map configuration
-│   │   └── ...                          # Other UI components
-│   └── render/
-│       ├── BusWaypointRenderer.java  # Bus marker rendering
-│       └── StopWaypointRenderer.java # Stop marker rendering
-└── resources/
-    ├── gtfs_static/                  # Static GTFS data files
-    │   ├── stops.txt
-    │   ├── trips.txt
-    │   ├── stop_times.txt
-    │   ├── routes.txt
-    │   └── ...
-    └── sprites/                      # UI icons
-        ├── bus.png
-        ├── stop.png
-        └── lente.png
+src/main/java/damose/
+├── app/
+│   └── DamoseApp.java              # Application entry point
+│
+├── config/
+│   └── AppConstants.java           # Centralized constants (colors, fonts, URLs)
+│
+├── controller/
+│   └── MainController.java         # Main application controller
+│
+├── data/
+│   ├── loader/                     # GTFS file loaders
+│   │   ├── CalendarLoader.java
+│   │   ├── CsvParser.java
+│   │   ├── StopsLoader.java
+│   │   ├── StopTimesLoader.java
+│   │   └── TripsLoader.java
+│   ├── mapper/                     # Data mapping utilities
+│   │   ├── StopTripMapper.java
+│   │   ├── TripIdUtils.java
+│   │   └── TripMatcher.java
+│   └── model/                      # Data models
+│       ├── Stop.java
+│       ├── StopTime.java
+│       ├── Trip.java
+│       ├── TripServiceCalendar.java
+│       ├── TripUpdateRecord.java
+│       └── VehiclePosition.java
+│
+├── database/
+│   ├── DatabaseManager.java        # SQLite connection management
+│   ├── SessionManager.java         # User session handling
+│   ├── User.java                   # User model
+│   └── UserService.java            # Authentication service
+│
+├── model/
+│   ├── BusWaypoint.java            # Bus marker on map
+│   ├── ConnectionMode.java         # Online/Offline enum
+│   └── StopWaypoint.java           # Stop marker on map
+│
+├── service/                        # Business logic layer
+│   ├── ArrivalService.java         # Arrival time calculations
+│   ├── GtfsParser.java             # GTFS-RT feed parsing
+│   ├── RealtimeService.java        # RT feed fetching & caching
+│   ├── RouteService.java           # Route/line operations
+│   └── StaticSimulator.java        # Offline mode simulation
+│
+└── ui/
+    ├── MainView.java               # Main application window
+    ├── component/                  # Reusable UI components
+    │   ├── FloatingArrivalPanel.java
+    │   └── SearchOverlay.java
+    ├── dialog/                     # Modal dialogs
+    │   ├── LoadingDialog.java
+    │   └── LoginDialog.java
+    ├── map/                        # Map utilities
+    │   ├── GeoUtils.java
+    │   ├── MapFactory.java
+    │   └── MapOverlayManager.java
+    └── render/                     # Custom waypoint renderers
+        ├── BusWaypointRenderer.java
+        ├── RoutePainter.java
+        └── StopWaypointRenderer.java
+
+src/main/resources/
+├── gtfs_static/                    # Static GTFS data files
+│   ├── stops.txt
+│   ├── trips.txt
+│   ├── stop_times.txt
+│   ├── calendar_dates.txt
+│   └── ...
+└── sprites/                        # UI icons
+    ├── bus.png
+    ├── stop.png
+    └── lente.png
 ```
 
 ## 🌐 Data Sources
@@ -120,41 +155,62 @@ This application uses GTFS and GTFS-RT data from [Roma Mobilità](https://romamo
 
 | Feed | URL |
 |------|-----|
-| Vehicle Positions | `https://romamobilita.it/sites/default/files/rome_rtgtfs_vehicle_positions_feed.pb` |
-| Trip Updates | `https://romamobilita.it/sites/default/files/rome_rtgtfs_trip_updates_feed.pb` |
+| Vehicle Positions | `https://romamobilita.it/.../rome_rtgtfs_vehicle_positions_feed.pb` |
+| Trip Updates | `https://romamobilita.it/.../rome_rtgtfs_trip_updates_feed.pb` |
 
 Static GTFS data is bundled in `src/main/resources/gtfs_static/`.
 
 ## ⚙️ Configuration
 
-The application automatically:
-- Fetches real-time data every **30 seconds**
-- Updates the map overlay every **15 seconds**
-- Falls back to offline mode if real-time feeds are unavailable
+All configuration is centralized in `AppConstants.java`:
 
-## 🔧 Development
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `RT_UPDATE_INTERVAL_MS` | 30,000 | Real-time feed refresh interval |
+| `RT_TIMEOUT_SECONDS` | 30 | Timeout for RT connection at startup |
+| `HTTP_CONNECT_TIMEOUT_MS` | 30,000 | HTTP connection timeout |
+| `ROME_LAT/LON` | 41.9028, 12.4964 | Default map center |
 
-### Adding New Features
+## 🎨 UI Theme
 
-The codebase follows an MVC-like architecture:
+The application uses a custom **Midnight Dark** theme with colors defined in `AppConstants.java`:
 
-- **Model** (`model/`) — Data structures and GTFS parsing
-- **View** (`view/`) — Swing UI components
-- **Controller** (`controller/`) — Business logic and coordination
+- Background: `#111115` (dark)
+- Accent: `#58A6FF` (blue)
+- Success: `#63D263` (green)
+- Error: `#FF6363` (red)
+- Text: `#E5E5EA` (light gray)
 
-### Key Classes
+## 🔧 Architecture
 
-| Class | Description |
-|-------|-------------|
-| `RealTimeBusTrackerController` | Main orchestrator, initializes data and updates |
-| `ArrivalService` | Computes arrival times, merges static + real-time data |
-| `GestoreRealTime` | Manages GTFS-RT feed fetching and caching |
-| `GTFSFetcher` | Parses Protocol Buffer feeds into Java objects |
-| `RealTimeBusTrackerView` | Main Swing window with map and overlays |
+The codebase follows a clean layered architecture:
+
+```
+┌─────────────────────────────────────────┐
+│              UI Layer                    │
+│  (MainView, Dialogs, Components)        │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│           Controller Layer              │
+│         (MainController)                │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│           Service Layer                 │
+│  (ArrivalService, RealtimeService,      │
+│   RouteService, GtfsParser)             │
+└────────────────┬────────────────────────┘
+                 │
+┌────────────────▼────────────────────────┐
+│            Data Layer                   │
+│  (Loaders, Mappers, Models, Database)   │
+└─────────────────────────────────────────┘
+```
 
 ## 📄 License
 
-This project is open source. Feel free to use, modify, and distribute.
+This project is open source under the MIT License.
 
 ## 🤝 Contributing
 
@@ -176,5 +232,6 @@ Contributions are welcome! Feel free to:
 ---
 
 <p align="center">
-  Made with ☕ and 🚌 in Rome
+  Made with ☕ and 🚌 in Rome<br>
+  <b>Damose!</b> 🇮🇹
 </p>

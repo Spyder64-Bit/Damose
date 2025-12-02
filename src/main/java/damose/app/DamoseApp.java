@@ -58,12 +58,6 @@ public class DamoseApp {
         loadingDialog = new LoadingDialog(null);
         loadingDialog.setVisible(true);
 
-        // Set callback for when loading is complete
-        loadingDialog.setOnComplete(() -> {
-            MainController controller = new MainController();
-            controller.start();
-        });
-
         // Run loading steps in background thread
         new Thread(() -> {
             try {
@@ -125,11 +119,29 @@ public class DamoseApp {
     private static void finishLoading() {
         loadingDialog.stepAppStart();
 
-        Timer finishTimer = new Timer(400, e -> {
-            ((Timer) e.getSource()).stop();
-            loadingDialog.completeAndClose();
-        });
-        finishTimer.setRepeats(false);
-        finishTimer.start();
+        // Load the app in background while keeping the loading dialog visible
+        new Thread(() -> {
+            try {
+                // Create and start the controller (this does the actual data loading)
+                MainController controller = new MainController();
+                controller.start();
+
+                // After data is loaded and view is ready, close loading dialog
+                SwingUtilities.invokeLater(() -> {
+                    loadingDialog.stepAppDone();
+                    loadingDialog.setProgress(100, "Pronto!");
+
+                    Timer closeTimer = new Timer(300, e -> {
+                        ((Timer) e.getSource()).stop();
+                        loadingDialog.dispose();
+                    });
+                    closeTimer.setRepeats(false);
+                    closeTimer.start();
+                });
+            } catch (Exception e) {
+                e.printStackTrace();
+                SwingUtilities.invokeLater(() -> loadingDialog.dispose());
+            }
+        }, "AppStartThread").start();
     }
 }
