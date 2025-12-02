@@ -40,8 +40,10 @@ public class RealTimeBusTrackerController {
 
     private List<Stops> fermate;
     private List<Trips> trips;
+    private List<StopTime> stopTimes;
     private TripMatcher matcher;
     private StopTripMapper stopTripMapper;
+    private RouteService routeService;
     private ConnectionMode mode = ConnectionMode.ONLINE;
     private RealTimeBusTrackerView view;
 
@@ -58,13 +60,14 @@ public class RealTimeBusTrackerController {
         // Carico statici
         fermate = StopsLoader.load("/gtfs_static/stops.txt");
         trips = TripsLoader.load("/gtfs_static/trips.txt");
+        stopTimes = StopTimesLoader.load("/gtfs_static/stop_times.txt");
+
         System.out.println("Stops caricati: " + (fermate == null ? 0 : fermate.size()));
         System.out.println("Trips caricati: " + (trips == null ? 0 : trips.size()));
 
         matcher = new TripMatcher(trips);
-
-        List<StopTime> stopTimes = StopTimesLoader.load("/gtfs_static/stop_times.txt");
         stopTripMapper = new StopTripMapper(stopTimes, matcher);
+        routeService = new RouteService(trips, stopTimes, fermate);
 
         // Carica calendar_dates.txt
         TripServiceCalendar tripServiceCalendar;
@@ -87,7 +90,8 @@ public class RealTimeBusTrackerController {
         setupStopClickListener();
 
         view.addWaypointClickListener();
-        MapOverlayUpdater.updateMap(view.getMapViewer(), fermate, Collections.emptyList(), trips);
+        // Mappa iniziale vuota (nessuna fermata visibile)
+        MapOverlayUpdater.updateMap(view.getMapViewer(), Collections.emptyList(), Collections.emptyList(), trips);
 
         // Avvio GestoreRealTime
         GestoreRealTime.setMode(mode);
@@ -127,10 +131,53 @@ public class RealTimeBusTrackerController {
     }
 
     private void handleStopSelection(Stops stop) {
-        if (!stop.isFakeLine()) {
+        if (stop.isFakeLine()) {
+            // È una linea: mostra il percorso
+            handleLineSelection(stop);
+        } else {
+            // È una fermata: centra e mostra solo questa fermata
+            MapOverlayUpdater.clearRoute();
+            MapOverlayUpdater.setVisibleStops(Collections.singletonList(stop));
             centerOnStop(stop);
             showFloatingArrivals(stop);
+            refreshMapOverlay();
         }
+    }
+
+    private void handleLineSelection(Stops fakeLine) {
+        // Estrai routeId e headsign dal nome della linea fake
+        // Formato: "routeId - headsign"
+        String lineName = fakeLine.getStopName();
+        String[] parts = lineName.split(" - ", 2);
+        String routeId = parts[0].trim();
+        String headsign = parts.length > 1 ? parts[1].trim() : null;
+
+        System.out.println("Linea selezionata: " + routeId + " -> " + headsign);
+
+        // Ottieni le fermate del percorso
+        List<Stops> routeStops = routeService.getStopsForRouteAndHeadsign(routeId, headsign);
+
+        if (routeStops.isEmpty()) {
+            // Prova senza headsign
+            routeStops = routeService.getStopsForRoute(routeId);
+        }
+
+        if (routeStops.isEmpty()) {
+            System.out.println("Nessuna fermata trovata per la linea " + routeId);
+            return;
+        }
+
+        System.out.println("Fermate trovate per " + routeId + ": " + routeStops.size());
+
+        // Imposta il percorso sulla mappa
+        MapOverlayUpdater.setRoute(routeStops);
+        refreshMapOverlay();
+
+        // Centra la mappa per mostrare tutto il percorso
+        fitMapToRoute(routeStops);
+
+        // Nascondi il pannello flottante degli arrivi
+        view.hideFloatingPanel();
     }
 
     // ============================
@@ -178,6 +225,45 @@ public class RealTimeBusTrackerController {
         view.getMapViewer().setZoom(1);
     }
 
+    /**
+     * Adatta la mappa per mostrare tutte le fermate del percorso.
+     * Centra sulla fermata centrale e imposta zoom per vedere tutto il percorso.
+     */
+    private void fitMapToRoute(List<Stops> routeStops) {
+        if (routeStops == null || routeStops.isEmpty()) return;
+
+        double minLat = Double.MAX_VALUE, maxLat = -Double.MAX_VALUE;
+        double minLon = Double.MAX_VALUE, maxLon = -Double.MAX_VALUE;
+
+        for (Stops s : routeStops) {
+            minLat = Math.min(minLat, s.getStopLat());
+            maxLat = Math.max(maxLat, s.getStopLat());
+            minLon = Math.min(minLon, s.getStopLon());
+            maxLon = Math.max(maxLon, s.getStopLon());
+        }
+
+        // Centra sulla fermata centrale del percorso (non sul bounding box)
+        int middleIndex = routeStops.size() / 2;
+        Stops middleStop = routeStops.get(middleIndex);
+        view.getMapViewer().setAddressLocation(new GeoPosition(middleStop.getStopLat(), middleStop.getStopLon()));
+
+        // Calcola zoom appropriato per vedere tutto il percorso
+        // In JXMapViewer: valori più alti = più zoom out
+        double latDiff = maxLat - minLat;
+        double lonDiff = maxLon - minLon;
+        double maxDiff = Math.max(latDiff, lonDiff);
+
+        int zoom;
+        if (maxDiff > 0.3) zoom = 8;       // Percorso molto lungo
+        else if (maxDiff > 0.15) zoom = 7; // Percorso lungo
+        else if (maxDiff > 0.08) zoom = 6; // Percorso medio-lungo
+        else if (maxDiff > 0.04) zoom = 5; // Percorso medio
+        else if (maxDiff > 0.02) zoom = 4; // Percorso corto
+        else zoom = 3;                      // Percorso molto corto
+
+        view.getMapViewer().setZoom(zoom);
+    }
+
     // ============================
     // Mostra arrivi (delegato ad ArrivalService)
     // ============================
@@ -190,6 +276,25 @@ public class RealTimeBusTrackerController {
         GeoPosition anchorGeo = new GeoPosition(stop.getStopLat(), stop.getStopLon());
         Point2D p2d = view.getMapViewer().convertGeoPositionToPoint(anchorGeo);
         SwingUtilities.invokeLater(() -> view.showFloatingPanel(stop.getStopName(), arrivi, p2d, anchorGeo));
+    }
+
+    // ============================
+    // Refresh map
+    // ============================
+    private void refreshMapOverlay() {
+        GtfsRealtime.FeedMessage vpFeed = GestoreRealTime.getLatestVehiclePositions();
+        List<VehiclePosition> positions;
+        try {
+            positions = (mode == ConnectionMode.ONLINE)
+                ? GTFSFetcher.parseVehiclePositions(vpFeed)
+                : StaticSimulator.simulateAllTrips();
+        } catch (Exception e) {
+            positions = Collections.emptyList();
+        }
+
+        final List<VehiclePosition> busPositions = positions;
+        // Passa lista vuota per allStops - le fermate visibili sono gestite da setVisibleStops/setRoute
+        SwingUtilities.invokeLater(() -> MapOverlayUpdater.updateMap(view.getMapViewer(), Collections.emptyList(), busPositions, trips));
     }
 
     // ============================
@@ -237,8 +342,9 @@ public class RealTimeBusTrackerController {
                 }
 
                 final List<VehiclePosition> busPositions = computedPositions;
-                SwingUtilities.invokeLater(() -> MapOverlayUpdater.updateMap(view.getMapViewer(), fermate, busPositions, trips));
+                // Passa lista vuota per allStops - le fermate visibili sono gestite separatamente
+                SwingUtilities.invokeLater(() -> MapOverlayUpdater.updateMap(view.getMapViewer(), Collections.emptyList(), busPositions, trips));
             }
-        }, 0, 15_000);
+        }, 0, 30_000); // Update every 30 seconds
     }
 }
