@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import damose.config.AppConstants;
-import damose.data.model.Trip;
+import damose.model.Trip;
 
 /**
  * Loader for GTFS trips.txt file.

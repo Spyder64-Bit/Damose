@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import damose.data.model.Stop;
-import damose.data.model.StopTime;
-import damose.data.model.Trip;
+import damose.model.Stop;
+import damose.model.StopTime;
+import damose.model.Trip;
 
 /**
  * Service for managing route-related operations.

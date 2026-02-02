@@ -3,7 +3,7 @@ package damose.model;
 import org.jxmapviewer.viewer.DefaultWaypoint;
 import org.jxmapviewer.viewer.GeoPosition;
 
-import damose.data.model.Stop;
+import damose.model.Stop;
 
 /**
  * Waypoint representing a stop on the map.

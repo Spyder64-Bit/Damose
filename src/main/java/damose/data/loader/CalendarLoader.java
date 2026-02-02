@@ -8,7 +8,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 
 import damose.config.AppConstants;
-import damose.data.model.TripServiceCalendar;
+import damose.model.TripServiceCalendar;
 
 /**
  * Loader for GTFS calendar_dates.txt file.

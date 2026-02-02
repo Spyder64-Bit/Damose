@@ -9,8 +9,8 @@ import com.google.transit.realtime.GtfsRealtime;
 
 import damose.data.mapper.StopTripMapper;
 import damose.data.mapper.TripIdUtils;
-import damose.data.model.TripUpdateRecord;
-import damose.data.model.VehiclePosition;
+import damose.model.TripUpdateRecord;
+import damose.model.VehiclePosition;
 
 /**
  * Parser for GTFS-RT feeds (TripUpdates and VehiclePositions).

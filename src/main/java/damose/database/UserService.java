@@ -63,17 +63,17 @@ public final class UserService {
             stmt.setString(1, username.toLowerCase().trim());
             stmt.setString(2, hashedPassword);
 
-            ResultSet rs = stmt.executeQuery();
-
-            if (rs.next()) {
-                User user = new User(
-                    rs.getInt("id"),
-                    rs.getString("username"),
-                    rs.getString("email"),
-                    LocalDateTime.now()
-                );
-                System.out.println("Login successful: " + username);
-                return user;
+            try (ResultSet rs = stmt.executeQuery()) {
+                if (rs.next()) {
+                    User user = new User(
+                        rs.getInt("id"),
+                        rs.getString("username"),
+                        rs.getString("email"),
+                        LocalDateTime.now()
+                    );
+                    System.out.println("Login successful: " + username);
+                    return user;
+                }
             }
 
         } catch (SQLException e) {
@@ -94,9 +94,9 @@ public final class UserService {
              PreparedStatement stmt = conn.prepareStatement(sql)) {
 
             stmt.setString(1, username.toLowerCase().trim());
-            ResultSet rs = stmt.executeQuery();
-
-            return rs.next() && rs.getInt(1) > 0;
+            try (ResultSet rs = stmt.executeQuery()) {
+                return rs.next() && rs.getInt(1) > 0;
+            }
 
         } catch (SQLException e) {
             System.err.println("Error checking username: " + e.getMessage());

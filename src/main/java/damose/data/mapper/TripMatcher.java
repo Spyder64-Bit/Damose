@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import damose.data.model.Trip;
-import damose.data.model.VehiclePosition;
+import damose.model.Trip;
+import damose.model.VehiclePosition;
 
 /**
  * Matches real-time vehicle positions to static trip data.

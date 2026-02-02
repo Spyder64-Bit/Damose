@@ -3,7 +3,7 @@ package damose.service;
 import java.util.Collections;
 import java.util.List;
 
-import damose.data.model.VehiclePosition;
+import damose.model.VehiclePosition;
 
 /**
  * Static simulator for offline mode.

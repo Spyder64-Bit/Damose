@@ -9,7 +9,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import damose.data.model.Route;
+import damose.model.Route;
 
 /**
  * Loader for GTFS routes.txt file.

@@ -2,6 +2,7 @@ package damose.controller;
 
 import java.awt.geom.Point2D;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Timer;
@@ -21,12 +22,12 @@ import damose.data.loader.StopsLoader;
 import damose.data.loader.TripsLoader;
 import damose.data.mapper.StopTripMapper;
 import damose.data.mapper.TripMatcher;
-import damose.data.model.Stop;
-import damose.data.model.StopTime;
-import damose.data.model.Trip;
-import damose.data.model.TripServiceCalendar;
-import damose.data.model.TripUpdateRecord;
-import damose.data.model.VehiclePosition;
+import damose.model.Stop;
+import damose.model.StopTime;
+import damose.model.Trip;
+import damose.model.TripServiceCalendar;
+import damose.model.TripUpdateRecord;
+import damose.model.VehiclePosition;
 import damose.model.ConnectionMode;
 import damose.service.ArrivalService;
 import damose.service.FavoritesService;
@@ -34,9 +35,9 @@ import damose.service.GtfsParser;
 import damose.service.RealtimeService;
 import damose.service.RouteService;
 import damose.service.ServiceQualityTracker;
-import damose.ui.MainView;
-import damose.ui.map.MapAnimator;
-import damose.ui.map.MapOverlayManager;
+import damose.view.MainView;
+import damose.view.map.MapAnimator;
+import damose.view.map.MapOverlayManager;
 import damose.util.MemoryManager;
 
 /**
@@ -93,8 +94,8 @@ public class MainController {
 
         setupSearchPanel();
         
-        // Initialize favorites with both stops and lines
-        FavoritesService.init(stops, linesList);
+        // Initialize favorites with stops (empty lines list for now)
+        FavoritesService.init(stops, new ArrayList<>());
         setupStopClickListener();
         setupConnectionButton();
         setupFavoritesButton();

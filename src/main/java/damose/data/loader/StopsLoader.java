@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import damose.config.AppConstants;
-import damose.data.model.Stop;
+import damose.model.Stop;
 
 /**
  * Loader for GTFS stops.txt file.

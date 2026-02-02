@@ -112,7 +112,7 @@ public class RealtimeService {
                 }
                 return GtfsRealtime.FeedMessage.parseFrom(data);
             }
-        } catch (Exception ex) {
+        } catch (java.io.IOException ex) {
             System.out.println("Error fetching/parsing from " + urlStr + ": " + ex.getMessage());
             return null;
         } finally {

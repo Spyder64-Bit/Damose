@@ -1,8 +1,8 @@
 package damose.service;
 
-import damose.data.model.Stop;
-import damose.data.model.StopTime;
-import damose.data.model.Trip;
+import damose.model.Stop;
+import damose.model.StopTime;
+import damose.model.Trip;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

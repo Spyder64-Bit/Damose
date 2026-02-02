@@ -10,7 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
-import damose.data.model.Stop;
+import damose.model.Stop;
 import damose.database.SessionManager;
 
 /**
@@ -232,8 +232,10 @@ public final class FavoritesService {
                 }
             }
             System.out.println("Loaded " + favoriteStopIds.size() + " favorites");
-        } catch (Exception e) {
-            System.out.println("Error loading favorites: " + e.getMessage());
+        } catch (java.io.FileNotFoundException e) {
+            System.out.println("Favorites file not found: " + e.getMessage());
+        } catch (java.io.IOException e) {
+            System.err.println("Error loading favorites: " + e.getMessage());
         }
     }
 
@@ -245,8 +247,8 @@ public final class FavoritesService {
                 writer.write(id);
                 writer.newLine();
             }
-        } catch (Exception e) {
-            System.out.println("Error saving favorites: " + e.getMessage());
+        } catch (java.io.IOException e) {
+            System.err.println("Error saving favorites: " + e.getMessage());
         }
     }
     
@@ -282,8 +284,10 @@ public final class FavoritesService {
                 }
             }
             System.out.println("Loaded " + favoriteLineIds.size() + " favorite lines");
-        } catch (Exception e) {
-            System.out.println("Error loading line favorites: " + e.getMessage());
+        } catch (java.io.FileNotFoundException e) {
+            System.out.println("Line favorites file not found: " + e.getMessage());
+        } catch (java.io.IOException e) {
+            System.err.println("Error loading line favorites: " + e.getMessage());
         }
     }
 
@@ -295,8 +299,8 @@ public final class FavoritesService {
                 writer.write(id);
                 writer.newLine();
             }
-        } catch (Exception e) {
-            System.out.println("Error saving line favorites: " + e.getMessage());
+        } catch (java.io.IOException e) {
+            System.err.println("Error saving line favorites: " + e.getMessage());
         }
     }
 }

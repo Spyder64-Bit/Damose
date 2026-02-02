@@ -3,8 +3,8 @@ package damose.model;
 import org.jxmapviewer.viewer.DefaultWaypoint;
 
 import damose.data.loader.RoutesLoader;
-import damose.data.model.Route;
-import damose.data.model.VehiclePosition;
+import damose.model.Route;
+import damose.model.VehiclePosition;
 
 /**
  * Waypoint representing a vehicle (bus, tram, metro) on the map.

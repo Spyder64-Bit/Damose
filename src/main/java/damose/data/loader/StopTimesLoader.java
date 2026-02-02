@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 import damose.config.AppConstants;
-import damose.data.model.StopTime;
+import damose.model.StopTime;
 
 /**
  * Loader for GTFS stop_times.txt file.

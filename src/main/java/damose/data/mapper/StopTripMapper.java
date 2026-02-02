@@ -10,8 +10,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import damose.data.model.StopTime;
-import damose.data.model.Trip;
+import damose.model.StopTime;
+import damose.model.Trip;
 
 /**
  * Maps stops to trips and provides trip sequence lookups.

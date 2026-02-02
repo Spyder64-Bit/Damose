@@ -16,10 +16,10 @@ import damose.config.AppConstants;
 import damose.data.mapper.StopTripMapper;
 import damose.data.mapper.TripIdUtils;
 import damose.data.mapper.TripMatcher;
-import damose.data.model.StopTime;
-import damose.data.model.Trip;
-import damose.data.model.TripServiceCalendar;
-import damose.data.model.TripUpdateRecord;
+import damose.model.StopTime;
+import damose.model.Trip;
+import damose.model.TripServiceCalendar;
+import damose.model.TripUpdateRecord;
 import damose.model.ConnectionMode;
 
 /**
@@ -114,7 +114,7 @@ public class ArrivalService {
                 }
             }
 
-            RouteArrivalInfo candidate = new RouteArrivalInfo(routeId, st, scheduledEpoch, predictedEpoch);
+            RouteArrivalInfo candidate = new RouteArrivalInfo(routeId, scheduledEpoch, predictedEpoch);
             RouteArrivalInfo current = perRoute.get(routeId);
 
             if (current == null) {
@@ -155,7 +155,6 @@ public class ArrivalService {
             return List.of("Nessun passaggio programmato per oggi");
         }
 
-        final long nowEpoch = Instant.now().getEpochSecond();
         final LocalDate feedDate = Instant.ofEpochSecond(currentFeedTs)
                 .atZone(ZoneId.systemDefault()).toLocalDate();
 
@@ -166,7 +165,6 @@ public class ArrivalService {
             if (trip == null) continue;
             
             String routeId = trip.getRouteId();
-            String tripId = st.getTripId();
 
             // Check active service
             String serviceId = trip.getServiceId();
@@ -187,7 +185,7 @@ public class ArrivalService {
                 ? lookupRealtimeArrivalEpochStrictByStop(st, stopId) 
                 : null;
 
-            allTrips.add(new TripArrivalInfo(routeId, tripId, trip.getTripHeadsign(), 
+            allTrips.add(new TripArrivalInfo(routeId, trip.getTripHeadsign(), 
                 arr, scheduledEpoch, predictedEpoch));
         }
 
@@ -196,7 +194,7 @@ public class ArrivalService {
 
         List<String> result = new ArrayList<>();
         for (TripArrivalInfo info : allTrips) {
-            result.add(formatTripInfo(info, nowEpoch));
+            result.add(formatTripInfo(info));
         }
 
         if (result.isEmpty()) {
@@ -205,9 +203,14 @@ public class ArrivalService {
         return result;
     }
     
-    private String formatTripInfo(TripArrivalInfo info, long nowEpoch) {
+    private String formatTripInfo(TripArrivalInfo info) {
         String timeStr = String.format("%02d:%02d", info.arrivalTime.getHour(), info.arrivalTime.getMinute());
         String headsign = (info.headsign != null && !info.headsign.isEmpty()) ? info.headsign : "";
+        
+        // Truncate long headsigns to prevent panel overflow
+        if (headsign.length() > 30) {
+            headsign = headsign.substring(0, 27) + "...";
+        }
         
         if (info.predictedEpoch != null) {
             long delayMin = (info.predictedEpoch - info.scheduledEpoch) / 60;
@@ -227,16 +230,14 @@ public class ArrivalService {
      */
     private static class TripArrivalInfo {
         final String routeId;
-        final String tripId;
         final String headsign;
         final LocalTime arrivalTime;
         final long scheduledEpoch;
         final Long predictedEpoch;
 
-        TripArrivalInfo(String routeId, String tripId, String headsign, 
+        TripArrivalInfo(String routeId, String headsign, 
                        LocalTime arrivalTime, long scheduledEpoch, Long predictedEpoch) {
             this.routeId = routeId;
-            this.tripId = tripId;
             this.headsign = headsign;
             this.arrivalTime = arrivalTime;
             this.scheduledEpoch = scheduledEpoch;
@@ -343,19 +344,20 @@ public class ArrivalService {
      */
     private static class RouteArrivalInfo {
         final String routeId;
-        final StopTime stopTime;
         final long scheduledEpoch;
         final Long predictedEpoch;
 
-        RouteArrivalInfo(String routeId, StopTime stopTime, long scheduledEpoch, Long predictedEpoch) {
+        RouteArrivalInfo(String routeId, long scheduledEpoch, Long predictedEpoch) {
             this.routeId = routeId;
-            this.stopTime = stopTime;
             this.scheduledEpoch = scheduledEpoch;
             this.predictedEpoch = predictedEpoch;
         }
 
         long sortKey() {
-            return predictedEpoch != null ? predictedEpoch : scheduledEpoch;
+            if (predictedEpoch == null) {
+                return scheduledEpoch;
+            }
+            return predictedEpoch;
         }
     }
 }

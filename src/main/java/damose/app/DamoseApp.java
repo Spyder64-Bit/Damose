@@ -9,8 +9,8 @@ import damose.database.DatabaseManager;
 import damose.database.SessionManager;
 import damose.model.ConnectionMode;
 import damose.service.RealtimeService;
-import damose.ui.dialog.LoadingDialog;
-import damose.ui.dialog.LoginDialog;
+import damose.view.dialog.LoadingDialog;
+import damose.view.dialog.LoginDialog;
 
 /**
  * Main application entry point.
@@ -111,7 +111,7 @@ public class DamoseApp {
                 timeoutCheck.start();
 
             } catch (InterruptedException e) {
-                e.printStackTrace();
+                System.err.println("Loading thread interrupted: " + e.getMessage());
             }
         }, "LoadingThread").start();
     }
@@ -139,7 +139,8 @@ public class DamoseApp {
                     closeTimer.start();
                 });
             } catch (Exception e) {
-                e.printStackTrace();
+                System.err.println("Error starting application: " + e.getMessage());
+                e.printStackTrace(System.err);
                 SwingUtilities.invokeLater(() -> loadingDialog.dispose());
             }
         }, "AppStartThread").start();
