@@ -47,7 +47,6 @@ public final class TripIdUtils {
         s = s.replaceAll("[^A-Za-z0-9_\\-\\.]", "");
         s = s.replaceAll("^[\\-_.]+", "");
         s = s.replaceAll("[\\-_.]+$", "");
-        s = s.replaceAll("([\\-_.])0+$", "");
         s = s.toLowerCase();
 
         return s.isEmpty() ? null : s;
@@ -107,4 +106,3 @@ public final class TripIdUtils {
         return n == null ? "" : n;
     }
 }
-

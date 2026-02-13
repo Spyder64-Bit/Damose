@@ -73,7 +73,7 @@ public final class GtfsParser {
 
                 long arrivalEpoch = normalizeEpoch(rawTime);
                 if (stopId != null && !stopId.isBlank() && arrivalEpoch > 0) {
-                    updates.add(new TripUpdateRecord(rawTripId, stopId, arrivalEpoch));
+                    updates.add(new TripUpdateRecord(rawTripId, normalizeStopId(stopId), arrivalEpoch));
                 }
             }
         }
@@ -125,6 +125,15 @@ public final class GtfsParser {
         }
 
         return positions;
+    }
+
+    private static String normalizeStopId(String stopId) {
+        if (stopId == null) return null;
+        String normalized = stopId.trim();
+        // Some RT feeds append platform variants (e.g. "1234_1" / "1234:2").
+        // Static stop_times usually use the base stop id.
+        normalized = normalized.replaceFirst("[_:.-]\\d+$", "");
+        return normalized;
     }
 
     /**

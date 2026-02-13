@@ -104,7 +104,9 @@ public class StopTripMapper {
 
     private String normalizeTripId(String id) {
         if (id == null) return null;
-        return id.replaceFirst("^\\d+#", "").trim();
+        String normalized = TripIdUtils.normalizeSimple(id);
+        return normalized != null ? normalized : id.trim();
     }
+
 }
 
