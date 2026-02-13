@@ -95,6 +95,14 @@ class TripIdUtilsTest {
             assertEquals("test", TripIdUtils.normalizeSimple("_test_"));
             assertEquals("test", TripIdUtils.normalizeSimple("...test..."));
         }
+
+        @Test
+        @DisplayName("should preserve meaningful trailing digits")
+        void shouldPreserveMeaningfulTrailingDigits() {
+            assertEquals("4900", TripIdUtils.normalizeSimple("4900"));
+            assertEquals("line-120", TripIdUtils.normalizeSimple("LINE-120"));
+        }
+
     }
 
     @Nested
