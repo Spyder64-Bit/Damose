@@ -545,15 +545,17 @@ public class MainController {
             if (vp == null || vp.getPosition() == null) continue;
 
             Trip trip = dataContext.getTripMatcher().matchByTripId(vp.getTripId());
-            if (trip == null || !isSameRouteId(routeId, trip.getRouteId())) continue;
-            if (directionFilter != null && trip.getDirectionId() != directionFilter) continue;
+            String effectiveRouteId = trip != null ? trip.getRouteId() : vp.getRouteId();
+            int effectiveDirection = trip != null ? trip.getDirectionId() : vp.getDirectionId();
+            if (!isSameRouteId(routeId, effectiveRouteId)) continue;
+            if (directionFilter != null && effectiveDirection != directionFilter) continue;
 
             double progress = computeRouteProgress(vp.getPosition(), routeStops);
-            VehicleType vehicleType = resolveVehicleType(trip.getRouteId());
+            VehicleType vehicleType = resolveVehicleType(effectiveRouteId);
             String markerId = (vp.getVehicleId() == null || vp.getVehicleId().isBlank())
                     ? vp.getTripId()
                     : vp.getVehicleId();
-            String routeCode = resolveRouteCode(trip.getRouteId());
+            String routeCode = resolveRouteCode(effectiveRouteId);
             String vehicleKind = vehicleType == VehicleType.TRAM ? "TRAM" : "BUS";
             String markerTitle = vehicleKind;
             int progressPct = (int) Math.round(progress * 100.0);

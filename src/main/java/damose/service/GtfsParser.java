@@ -91,6 +91,10 @@ public final class GtfsParser {
 
             String tripId = (vehicle.hasTrip() && vehicle.getTrip().hasTripId()) 
                     ? vehicle.getTrip().getTripId() : null;
+            String routeId = (vehicle.hasTrip() && vehicle.getTrip().hasRouteId())
+                    ? vehicle.getTrip().getRouteId() : null;
+            int directionId = (vehicle.hasTrip() && vehicle.getTrip().hasDirectionId())
+                    ? vehicle.getTrip().getDirectionId() : -1;
             String vehicleId = (vehicle.hasVehicle() && vehicle.getVehicle().hasId()) 
                     ? vehicle.getVehicle().getId() : null;
 
@@ -127,7 +131,9 @@ public final class GtfsParser {
                 tripId,
                 vehicleId,
                 new GeoPosition(lat, lon),
-                stopSeq
+                stopSeq,
+                routeId,
+                directionId
             ));
         }
 

@@ -18,6 +18,7 @@ import java.awt.event.MouseMotionAdapter;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
@@ -42,6 +43,7 @@ public class LoginDialog extends JFrame {
 
     private static final String SWITCH_TO_REGISTER_TEXT = "Non hai ancora un account? Registrati";
     private static final String SWITCH_TO_LOGIN_TEXT = "Hai gi\u00E0 un account? Accedi";
+    private static final int TITLE_ICON_SIZE = 56;
 
     private JTextField usernameField;
     private JPasswordField passwordField;
@@ -65,10 +67,17 @@ public class LoginDialog extends JFrame {
         setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
         
         try {
-            ImageIcon icon = new ImageIcon(getClass().getResource("/sprites/icon.png"));
-            List<Image> icons = new ArrayList<>();
-            icons.add(icon.getImage());
-            setIconImages(icons);
+            Image trimmedIcon = loadTrimmedImage("/sprites/icon.png");
+            if (trimmedIcon != null) {
+                List<Image> icons = new ArrayList<>();
+                icons.add(trimmedIcon.getScaledInstance(256, 256, Image.SCALE_SMOOTH));
+                icons.add(trimmedIcon.getScaledInstance(128, 128, Image.SCALE_SMOOTH));
+                icons.add(trimmedIcon.getScaledInstance(64, 64, Image.SCALE_SMOOTH));
+                icons.add(trimmedIcon.getScaledInstance(48, 48, Image.SCALE_SMOOTH));
+                icons.add(trimmedIcon.getScaledInstance(32, 32, Image.SCALE_SMOOTH));
+                icons.add(trimmedIcon.getScaledInstance(16, 16, Image.SCALE_SMOOTH));
+                setIconImages(icons);
+            }
         } catch (Exception e) {
             System.out.println("Could not load app icon: " + e.getMessage());
         }
@@ -133,19 +142,23 @@ public class LoginDialog extends JFrame {
         titleRow.setAlignmentX(Component.CENTER_ALIGNMENT);
         
         try {
-            ImageIcon rawIcon = new ImageIcon(getClass().getResource("/sprites/icon.png"));
-            Image scaled = rawIcon.getImage().getScaledInstance(64, 64, Image.SCALE_SMOOTH);
+            Image trimmedIcon = loadTrimmedImage("/sprites/icon.png");
+            Image scaled = trimmedIcon != null
+                    ? trimmedIcon.getScaledInstance(TITLE_ICON_SIZE, TITLE_ICON_SIZE, Image.SCALE_SMOOTH)
+                    : null;
             JLabel iconLabel = new JLabel(new ImageIcon(scaled));
-            iconLabel.setPreferredSize(new Dimension(64, 64));
-            iconLabel.setMaximumSize(new Dimension(64, 64));
+            iconLabel.setPreferredSize(new Dimension(TITLE_ICON_SIZE, TITLE_ICON_SIZE));
+            iconLabel.setMaximumSize(new Dimension(TITLE_ICON_SIZE, TITLE_ICON_SIZE));
+            iconLabel.setAlignmentY(Component.CENTER_ALIGNMENT);
             titleRow.add(iconLabel);
-            titleRow.add(Box.createHorizontalStrut(10));
+            titleRow.add(Box.createHorizontalStrut(12));
         } catch (Exception e) {
         }
         
         JLabel titleLabel = new JLabel("Damose");
         titleLabel.setFont(AppConstants.FONT_TITLE);
         titleLabel.setForeground(AppConstants.TEXT_PRIMARY);
+        titleLabel.setAlignmentY(Component.CENTER_ALIGNMENT);
         titleRow.add(titleLabel);
         
         contentPanel.add(titleRow);
@@ -261,6 +274,50 @@ public class LoginDialog extends JFrame {
 
         titleBar.add(closeBtn, BorderLayout.EAST);
         return titleBar;
+    }
+
+    private Image loadTrimmedImage(String path) {
+        java.net.URL url = getClass().getResource(path);
+        if (url == null) {
+            return null;
+        }
+        ImageIcon rawIcon = new ImageIcon(url);
+        if (rawIcon.getIconWidth() <= 0 || rawIcon.getIconHeight() <= 0) {
+            return null;
+        }
+
+        BufferedImage source = new BufferedImage(rawIcon.getIconWidth(), rawIcon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = source.createGraphics();
+        g2.drawImage(rawIcon.getImage(), 0, 0, null);
+        g2.dispose();
+
+        return trimTransparentBorders(source);
+    }
+
+    private BufferedImage trimTransparentBorders(BufferedImage source) {
+        int w = source.getWidth();
+        int h = source.getHeight();
+        int minX = w;
+        int minY = h;
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int alpha = (source.getRGB(x, y) >>> 24) & 0xFF;
+                if (alpha > 8) {
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        if (maxX < minX || maxY < minY) {
+            return source;
+        }
+        return source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
 
     private JLabel createLabel(String text) {

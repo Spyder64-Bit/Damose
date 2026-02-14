@@ -139,4 +139,5 @@ mvn exec:java
 - GTFS statico locale in `src/main/resources/gtfs_static/`.
 
 ## Documentazione Aggiuntiva
-- `DOCUMENTAZIONE_PROGETTO_IT.md`: descrizione estesa del progetto (italiano + UML).
+- `docs/Relazione_Tecnica.pdf`: relazione tecnica del progetto.
+- `docs/javadoc/index.html`: documentazione API generata.

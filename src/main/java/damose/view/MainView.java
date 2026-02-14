@@ -1,12 +1,12 @@
 package damose.view;
 
+import java.awt.BasicStroke;
+import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.MediaTracker;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
@@ -17,6 +17,7 @@ import java.awt.event.MouseEvent;
 import java.awt.event.MouseMotionAdapter;
 import java.awt.geom.Point2D;
 import java.awt.geom.RoundRectangle2D;
+import java.awt.image.BufferedImage;
 import java.beans.PropertyChangeListener;
 import java.util.ArrayList;
 import java.util.List;
@@ -77,6 +78,10 @@ public class MainView {
     private static final int ROUTE_PANEL_WIDTH = 340;
     private static final int ROUTE_PANEL_TOP = 48;
     private static final int ROUTE_PANEL_MARGIN = 12;
+    private static final int WINDOW_CONTROL_SIZE = 34;
+    private static final int WINDOW_CONTROL_TOP = 6;
+    private static final int WINDOW_CONTROL_RIGHT_MARGIN = 6;
+    private static final int WINDOW_CONTROL_GAP = 2;
     private Runnable onFloatingPanelClose;
     private Runnable onRoutePanelClose;
     private IntConsumer onRouteDirectionSelected;
@@ -164,20 +169,15 @@ public class MainView {
         
         // Set app icon
         try {
-            ImageIcon icon = new ImageIcon(getClass().getResource("/sprites/icon.png"));
-            if (icon.getImageLoadStatus() == MediaTracker.COMPLETE) {
+            Image trimmedIcon = loadTrimmedImage("/sprites/icon.png");
+            if (trimmedIcon != null) {
                 List<Image> icons = new ArrayList<>();
-                // Create multiple scaled versions for taskbar (largest first for better quality)
-                Image scaled256 = icon.getImage().getScaledInstance(256, 256, Image.SCALE_SMOOTH);
-                Image scaled128 = icon.getImage().getScaledInstance(128, 128, Image.SCALE_SMOOTH);
-                Image scaled64 = icon.getImage().getScaledInstance(64, 64, Image.SCALE_SMOOTH);
-                Image scaled32 = icon.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
-                Image scaled16 = icon.getImage().getScaledInstance(16, 16, Image.SCALE_SMOOTH);
-                icons.add(scaled256);
-                icons.add(scaled128);
-                icons.add(scaled64);
-                icons.add(scaled32);
-                icons.add(scaled16);
+                icons.add(trimmedIcon.getScaledInstance(256, 256, Image.SCALE_SMOOTH));
+                icons.add(trimmedIcon.getScaledInstance(128, 128, Image.SCALE_SMOOTH));
+                icons.add(trimmedIcon.getScaledInstance(64, 64, Image.SCALE_SMOOTH));
+                icons.add(trimmedIcon.getScaledInstance(48, 48, Image.SCALE_SMOOTH));
+                icons.add(trimmedIcon.getScaledInstance(32, 32, Image.SCALE_SMOOTH));
+                icons.add(trimmedIcon.getScaledInstance(16, 16, Image.SCALE_SMOOTH));
                 frame.setIconImages(icons);
             }
         } catch (Exception e) {
@@ -319,14 +319,14 @@ public class MainView {
     
     private void createWindowControls() {
         // Close button (top-right corner)
-        closeButton = createOverlayButton("X", AppConstants.ERROR_COLOR);
-        closeButton.setBounds(1100 - 40, 6, 34, 34);
+        closeButton = createWindowControlButton(WindowControlType.CLOSE);
+        closeButton.setBounds(1100 - 40, WINDOW_CONTROL_TOP, WINDOW_CONTROL_SIZE, WINDOW_CONTROL_SIZE);
         closeButton.addActionListener(e -> System.exit(0));
         overlayPanel.add(closeButton);
         
         // Maximize button
-        maxButton = createOverlayButton("O", new java.awt.Color(120, 120, 120));
-        maxButton.setBounds(1100 - 76, 6, 34, 34);
+        maxButton = createWindowControlButton(WindowControlType.MAXIMIZE);
+        maxButton.setBounds(1100 - 76, WINDOW_CONTROL_TOP, WINDOW_CONTROL_SIZE, WINDOW_CONTROL_SIZE);
         maxButton.addActionListener(e -> {
             if (frame.getExtendedState() == JFrame.MAXIMIZED_BOTH) {
                 // Restore to normal size
@@ -341,8 +341,8 @@ public class MainView {
         overlayPanel.add(maxButton);
         
         // Minimize button
-        minButton = createOverlayButton("-", new java.awt.Color(120, 120, 120));
-        minButton.setBounds(1100 - 112, 6, 34, 34);
+        minButton = createWindowControlButton(WindowControlType.MINIMIZE);
+        minButton.setBounds(1100 - 112, WINDOW_CONTROL_TOP, WINDOW_CONTROL_SIZE, WINDOW_CONTROL_SIZE);
         minButton.addActionListener(e -> frame.setState(JFrame.ICONIFIED));
         overlayPanel.add(minButton);
     }
@@ -376,32 +376,133 @@ public class MainView {
         return panel;
     }
     
-    private JButton createOverlayButton(String text, java.awt.Color hoverColor) {
-        JButton btn = new JButton(text);
-        btn.setFont(new Font("Segoe UI", Font.BOLD, 16));
-        btn.setForeground(new java.awt.Color(60, 60, 60)); // Dark color
+    private enum WindowControlType {
+        CLOSE,
+        MAXIMIZE,
+        MINIMIZE
+    }
+
+    private JButton createWindowControlButton(WindowControlType type) {
+        JButton btn = new JButton() {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setRenderingHint(RenderingHints.KEY_STROKE_CONTROL, RenderingHints.VALUE_STROKE_PURE);
+                boolean hovered = getModel().isRollover();
+
+                int w = getWidth();
+                int h = getHeight();
+                int d = Math.min(w, h) - 6;
+                int x = (w - d) / 2;
+                int y = (h - d) / 2;
+
+                Color fill = hovered
+                        ? (type == WindowControlType.CLOSE ? new Color(235, 85, 85, 230) : new Color(125, 125, 140, 220))
+                        : new Color(28, 28, 34, 200);
+                Color border = hovered
+                        ? (type == WindowControlType.CLOSE ? new Color(255, 140, 140, 220) : new Color(165, 165, 180, 210))
+                        : new Color(80, 80, 94, 170);
+                Color glyph = hovered && type != WindowControlType.CLOSE
+                        ? new Color(250, 250, 255)
+                        : new Color(228, 228, 236);
+
+                g2.setColor(fill);
+                g2.fillOval(x, y, d, d);
+                g2.setColor(border);
+                g2.drawOval(x, y, d, d);
+
+                int cx = w / 2;
+                int cy = h / 2;
+                g2.setColor(glyph);
+                g2.setStroke(new BasicStroke(2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
+
+                switch (type) {
+                    case CLOSE -> {
+                        g2.drawLine(cx - 5, cy - 5, cx + 5, cy + 5);
+                        g2.drawLine(cx + 5, cy - 5, cx - 5, cy + 5);
+                    }
+                    case MAXIMIZE -> g2.drawRect(cx - 5, cy - 5, 10, 10);
+                    case MINIMIZE -> g2.drawLine(cx - 6, cy + 3, cx + 6, cy + 3);
+                }
+                g2.dispose();
+            }
+        };
+
         btn.setContentAreaFilled(false);
         btn.setBorderPainted(false);
         btn.setFocusPainted(false);
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.setOpaque(false);
-        
-        final java.awt.Color normalColor = new java.awt.Color(60, 60, 60);
+        btn.setRolloverEnabled(true);
+
         btn.addMouseListener(new MouseAdapter() {
+            @Override
             public void mouseEntered(MouseEvent e) {
-                btn.setForeground(hoverColor);
+                btn.repaint();
             }
+
+            @Override
             public void mouseExited(MouseEvent e) {
-                btn.setForeground(normalColor);
+                btn.repaint();
             }
         });
         return btn;
     }
     
     private void updateWindowControlPositions(int width) {
-        if (closeButton != null) closeButton.setBounds(width - 40, 6, 34, 34);
-        if (maxButton != null) maxButton.setBounds(width - 76, 6, 34, 34);
-        if (minButton != null) minButton.setBounds(width - 112, 6, 34, 34);
+        int closeX = width - WINDOW_CONTROL_RIGHT_MARGIN - WINDOW_CONTROL_SIZE;
+        int maxX = closeX - WINDOW_CONTROL_SIZE - WINDOW_CONTROL_GAP;
+        int minX = maxX - WINDOW_CONTROL_SIZE - WINDOW_CONTROL_GAP;
+        if (closeButton != null) closeButton.setBounds(closeX, WINDOW_CONTROL_TOP, WINDOW_CONTROL_SIZE, WINDOW_CONTROL_SIZE);
+        if (maxButton != null) maxButton.setBounds(maxX, WINDOW_CONTROL_TOP, WINDOW_CONTROL_SIZE, WINDOW_CONTROL_SIZE);
+        if (minButton != null) minButton.setBounds(minX, WINDOW_CONTROL_TOP, WINDOW_CONTROL_SIZE, WINDOW_CONTROL_SIZE);
+    }
+
+    private Image loadTrimmedImage(String path) {
+        java.net.URL url = getClass().getResource(path);
+        if (url == null) {
+            return null;
+        }
+
+        ImageIcon rawIcon = new ImageIcon(url);
+        if (rawIcon.getIconWidth() <= 0 || rawIcon.getIconHeight() <= 0) {
+            return null;
+        }
+
+        BufferedImage source = new BufferedImage(rawIcon.getIconWidth(), rawIcon.getIconHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g2 = source.createGraphics();
+        g2.drawImage(rawIcon.getImage(), 0, 0, null);
+        g2.dispose();
+
+        return trimTransparentBorders(source);
+    }
+
+    private BufferedImage trimTransparentBorders(BufferedImage source) {
+        int w = source.getWidth();
+        int h = source.getHeight();
+        int minX = w;
+        int minY = h;
+        int maxX = -1;
+        int maxY = -1;
+
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int alpha = (source.getRGB(x, y) >>> 24) & 0xFF;
+                if (alpha > 8) {
+                    if (x < minX) minX = x;
+                    if (y < minY) minY = y;
+                    if (x > maxX) maxX = x;
+                    if (y > maxY) maxY = y;
+                }
+            }
+        }
+
+        if (maxX < minX || maxY < minY) {
+            return source;
+        }
+
+        return source.getSubimage(minX, minY, maxX - minX + 1, maxY - minY + 1);
     }
     
     private void enableWindowDrag() {

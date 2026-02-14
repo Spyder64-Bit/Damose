@@ -161,10 +161,8 @@ public class MapOverlayManager {
         for (BusWaypoint wp : busWaypoints) {
             if (wp == null || wp.getPosition() == null) continue;
             
-            if (busRouteFilter != null && wp.getRouteId() != null) {
-                if (!wp.getRouteId().equals(busRouteFilter)) {
-                    continue;
-                }
+            if (busRouteFilter != null && !isSameRouteId(wp.getRouteId(), busRouteFilter)) {
+                continue;
             }
             if (busDirectionFilter != null && wp.getDirectionId() != busDirectionFilter) {
                 continue;
@@ -278,15 +276,31 @@ public class MapOverlayManager {
             ensureTripIndex(trips);
             List<BusWaypoint> newBusWaypoints = new ArrayList<>();
             Set<String> newBusIds = new HashSet<>();
+            Set<String> seenVehicleKeys = new HashSet<>();
             
             for (VehiclePosition vp : busPositions) {
+                if (vp == null || vp.getPosition() == null) continue;
+
+                String vehicleKey = trimToNull(vp.getVehicleId());
+                if (vehicleKey == null) {
+                    vehicleKey = trimToNull(vp.getTripId());
+                }
+                if (vehicleKey != null && !seenVehicleKeys.add(vehicleKey)) {
+                    continue;
+                }
+
                 Trip trip = findTrip(vp.getTripId());
                 String headsign = (trip != null) ? trip.getTripHeadsign() : vp.getTripId();
-                String routeId = (trip != null) ? trip.getRouteId() : null;
-                int directionId = (trip != null) ? trip.getDirectionId() : -1;
+                String routeId = trimToNull((trip != null) ? trip.getRouteId() : vp.getRouteId());
+                int directionId = (trip != null) ? trip.getDirectionId() : vp.getDirectionId();
+
+                if (routeId == null) {
+                    continue;
+                }
+
                 newBusWaypoints.add(new BusWaypoint(vp, headsign, routeId, directionId));
-                if (vp.getVehicleId() != null) {
-                    newBusIds.add(vp.getVehicleId());
+                if (vehicleKey != null) {
+                    newBusIds.add(vehicleKey);
                 }
             }
 
@@ -344,6 +358,31 @@ public class MapOverlayManager {
             }
         }
         return null;
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private static boolean isSameRouteId(String left, String right) {
+        if (left == null || right == null) return false;
+        return normalizeRouteId(left).equalsIgnoreCase(normalizeRouteId(right));
+    }
+
+    private static String normalizeRouteId(String routeId) {
+        String trimmed = routeId == null ? "" : routeId.trim();
+        if (trimmed.isEmpty()) return trimmed;
+        if (!trimmed.chars().allMatch(Character::isDigit)) {
+            return trimmed.toUpperCase();
+        }
+
+        int i = 0;
+        while (i < trimmed.length() - 1 && trimmed.charAt(i) == '0') {
+            i++;
+        }
+        return trimmed.substring(i);
     }
 
     public static void setVisibleStops(List<Stop> stops) {

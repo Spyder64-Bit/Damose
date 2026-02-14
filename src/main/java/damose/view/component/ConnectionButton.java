@@ -1,12 +1,8 @@
 package damose.view.component;
 
-import java.awt.Component;
 import java.awt.Cursor;
 import java.awt.Dimension;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
 import java.awt.Image;
-import java.awt.RenderingHints;
 import java.net.URL;
 
 import javax.swing.Icon;
@@ -19,17 +15,12 @@ import damose.model.ConnectionMode;
 
 public class ConnectionButton extends JButton {
 
-    public static final int BUTTON_WIDTH = 44;
-    public static final int BUTTON_HEIGHT = 44;
+    public static final int BUTTON_WIDTH = 48;
+    public static final int BUTTON_HEIGHT = 48;
     private static final int ANIMATION_INTERVAL_MS = 50;
-
-    private static final double WIFI_ZOOM = 1.8;
-    private static final double NOWIFI_ZOOM = 1.8;
-    private static final double CONNECTING_ZOOM = 4.8;
-
-    private final Image wifiImage;
-    private final Image noWifiImage;
-    private final Image connectingImage;
+    private static final int WIFI_ICON_SIZE = 40;
+    private static final int NOWIFI_ICON_SIZE = 40;
+    private static final int CONNECTING_ICON_SIZE = 36;
 
     private final Icon wifiIcon;
     private final Icon noWifiIcon;
@@ -41,13 +32,10 @@ public class ConnectionButton extends JButton {
     private Timer animationTimer;
 
     public ConnectionButton() {
-        wifiImage = loadImage("/sprites/wifi.png");
-        noWifiImage = loadImage("/sprites/nowifi.png");
-        connectingImage = loadImage("/sprites/connecting.gif");
-
-        wifiIcon = createFittedIcon(wifiImage, WIFI_ZOOM);
-        noWifiIcon = createFittedIcon(noWifiImage, NOWIFI_ZOOM);
-        connectingIcon = createFittedIcon(connectingImage, CONNECTING_ZOOM);
+        wifiIcon = loadScaledIcon("/sprites/wifi.png", WIFI_ICON_SIZE, Image.SCALE_SMOOTH);
+        noWifiIcon = loadScaledIcon("/sprites/nowifi.png", NOWIFI_ICON_SIZE, Image.SCALE_SMOOTH);
+        // Same approach used in LoadingDialog for animated GIF.
+        connectingIcon = loadScaledIcon("/sprites/connecting.gif", CONNECTING_ICON_SIZE, Image.SCALE_DEFAULT);
 
         setContentAreaFilled(false);
         setBorderPainted(false);
@@ -75,70 +63,15 @@ public class ConnectionButton extends JButton {
         });
     }
 
-    private Image loadImage(String path) {
+    private Icon loadScaledIcon(String path, int size, int scaleHint) {
         URL url = getClass().getResource(path);
         if (url == null) {
             System.err.println("Missing resource: " + path);
             return null;
         }
-
-        return new ImageIcon(url).getImage();
-    }
-
-    private Icon createFittedIcon(Image image, double zoom) {
-        if (image == null) return null;
-        return new FitToBoundsIcon(image, BUTTON_WIDTH, BUTTON_HEIGHT, zoom);
-    }
-
-    private static final class FitToBoundsIcon implements Icon {
-        private final Image image;
-        private final int maxWidth;
-        private final int maxHeight;
-        private final double zoom;
-
-        private FitToBoundsIcon(Image image, int maxWidth, int maxHeight, double zoom) {
-            this.image = image;
-            this.maxWidth = maxWidth;
-            this.maxHeight = maxHeight;
-            this.zoom = zoom;
-        }
-
-        @Override
-        public int getIconWidth() {
-            return maxWidth;
-        }
-
-        @Override
-        public int getIconHeight() {
-            return maxHeight;
-        }
-
-        @Override
-        public void paintIcon(Component c, Graphics g, int x, int y) {
-            int imgW = image.getWidth(c);
-            int imgH = image.getHeight(c);
-            if (imgW <= 0 || imgH <= 0) {
-                return;
-            }
-
-            double scale = Math.min((double) maxWidth / imgW, (double) maxHeight / imgH) * zoom;
-            int drawW = Math.max(1, (int) Math.round(imgW * scale));
-            int drawH = Math.max(1, (int) Math.round(imgH * scale));
-
-            int drawX = x + (maxWidth - drawW) / 2;
-            int drawY = y + (maxHeight - drawH) / 2;
-
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g2.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY);
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-            java.awt.Shape oldClip = g2.getClip();
-            g2.setClip(x, y, maxWidth, maxHeight);
-            g2.drawImage(image, drawX, drawY, drawW, drawH, c);
-            g2.setClip(oldClip);
-            g2.dispose();
-        }
+        ImageIcon imageIcon = new ImageIcon(url);
+        Image scaled = imageIcon.getImage().getScaledInstance(size, size, scaleHint);
+        return new ImageIcon(scaled);
     }
 
     public void setOnModeToggle(Runnable callback) {
@@ -148,7 +81,7 @@ public class ConnectionButton extends JButton {
     public void showConnecting() {
         SwingUtilities.invokeLater(() -> {
             isConnecting = true;
-            setCursor(Cursor.getPredefinedCursor(Cursor.WAIT_CURSOR));
+            setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             setToolTipText("Connessione in corso...");
 
             if (connectingIcon != null) {
