@@ -39,18 +39,17 @@ public class RouteService {
     public List<Trip> findTripsByRouteId(String routeId) {
         if (routeId == null) return Collections.emptyList();
 
-        List<Trip> exact = tripsByRouteId.get(routeId);
+        String target = routeId.trim();
+        if (target.isEmpty()) return Collections.emptyList();
+
+        List<Trip> exact = tripsByRouteId.get(target);
         if (exact != null && !exact.isEmpty()) {
             return exact;
         }
 
-        String normalizedTarget = normalizeNumericRouteId(routeId);
-        if (normalizedTarget == null) {
-            return Collections.emptyList();
-        }
-
         for (Map.Entry<String, List<Trip>> entry : tripsByRouteId.entrySet()) {
-            if (normalizedTarget.equals(normalizeNumericRouteId(entry.getKey()))) {
+            String key = entry.getKey();
+            if (key != null && target.equalsIgnoreCase(key.trim())) {
                 return entry.getValue();
             }
         }
@@ -135,7 +134,9 @@ public class RouteService {
         Map<String, List<Trip>> map = new HashMap<>();
         for (Trip trip : trips) {
             if (trip == null || trip.getRouteId() == null) continue;
-            map.computeIfAbsent(trip.getRouteId(), k -> new ArrayList<>()).add(trip);
+            String routeId = trip.getRouteId().trim();
+            if (routeId.isEmpty()) continue;
+            map.computeIfAbsent(routeId, k -> new ArrayList<>()).add(trip);
         }
         return map;
     }
@@ -164,19 +165,5 @@ public class RouteService {
         return bestTrip;
     }
 
-    private static String normalizeNumericRouteId(String routeId) {
-        if (routeId == null) return null;
-        String trimmed = routeId.trim();
-        if (trimmed.isEmpty()) return null;
-        if (!trimmed.chars().allMatch(Character::isDigit)) {
-            return trimmed.toUpperCase();
-        }
-
-        int i = 0;
-        while (i < trimmed.length() - 1 && trimmed.charAt(i) == '0') {
-            i++;
-        }
-        return trimmed.substring(i);
-    }
 }
 

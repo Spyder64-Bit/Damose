@@ -1,4 +1,4 @@
-package damose.ui.map;
+package damose.view.map;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;

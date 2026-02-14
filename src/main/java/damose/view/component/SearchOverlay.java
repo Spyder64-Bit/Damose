@@ -319,30 +319,12 @@ public class SearchOverlay extends JPanel {
         String name = line.getStopName() == null ? "" : line.getStopName().trim().toLowerCase();
         if (q.isEmpty()) return 99;
 
-        String normalizedQ = normalizeNumericToken(q);
-        String normalizedId = normalizeNumericToken(id);
-
         if (id.equals(q)) return 0;
-        if (!normalizedQ.isEmpty() && normalizedId.equals(normalizedQ)) return 1;
-        if (id.startsWith(q)) return 2;
-        if (id.contains(q)) return 3;
-        if (name.startsWith(q)) return 4;
-        if (name.contains(q)) return 5;
-        return 6;
-    }
-
-    private static String normalizeNumericToken(String value) {
-        if (value == null || value.isEmpty()) return "";
-        for (int i = 0; i < value.length(); i++) {
-            if (!Character.isDigit(value.charAt(i))) {
-                return value;
-            }
-        }
-        int i = 0;
-        while (i < value.length() - 1 && value.charAt(i) == '0') {
-            i++;
-        }
-        return value.substring(i);
+        if (id.startsWith(q)) return 1;
+        if (id.contains(q)) return 2;
+        if (name.startsWith(q)) return 3;
+        if (name.contains(q)) return 4;
+        return 5;
     }
 
     private void moveSelection(int delta) {

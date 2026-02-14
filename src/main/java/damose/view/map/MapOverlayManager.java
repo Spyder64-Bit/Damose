@@ -9,6 +9,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,8 +39,8 @@ public class MapOverlayManager {
     private static final List<Stop> visibleStops = new ArrayList<>();
     private static final List<BusWaypoint> busWaypoints = new ArrayList<>();
 
-    private static final Map<String, Trip> tripByExactId = new HashMap<>();
-    private static final Map<String, Trip> tripByNormalizedId = new HashMap<>();
+    private static final Map<String, List<Trip>> tripByExactId = new HashMap<>();
+    private static final Map<String, List<Trip>> tripByNormalizedId = new HashMap<>();
     private static List<Trip> indexedTripsRef = null;
     
     private static String busRouteFilter = null;
@@ -112,19 +113,21 @@ public class MapOverlayManager {
     }
     
     private static void drawStops(Graphics2D g, JXMapViewer map) {
-        List<Stop> allStops = new ArrayList<>();
-        allStops.addAll(visibleStops);
-        allStops.addAll(routeStops);
-        
-        if (allStops.isEmpty()) return;
+        if (visibleStops.isEmpty() && routeStops.isEmpty()) return;
         
         Rectangle2D viewport = map.getViewportBounds();
         int zoom = map.getZoom();
         
-        Image icon = (zoom > 4) ? stopIconSmall : stopIcon;
-        int size = (zoom > 4) ? 22 : 36;
-        
-        for (Stop stop : allStops) {
+        int size;
+        if (zoom >= 8) size = 10;
+        else if (zoom >= 7) size = 14;
+        else if (zoom >= 5) size = 22;
+        else size = 36;
+
+        Image icon = size <= 22 ? stopIconSmall : stopIcon;
+
+        // Explicitly selected stops are always drawn.
+        for (Stop stop : visibleStops) {
             if (stop == null) continue;
             
             GeoPosition pos = new GeoPosition(stop.getStopLat(), stop.getStopLon());
@@ -138,12 +141,51 @@ public class MapOverlayManager {
             }
             
             if (icon != null) {
-                g.drawImage(icon, screenX - size / 2, screenY - size / 2, null);
+                g.drawImage(icon, screenX - size / 2, screenY - size / 2, size, size, null);
             } else {
                 g.setColor(new Color(220, 50, 50));
                 g.fillOval(screenX - size / 2, screenY - size / 2, size, size);
                 g.setColor(Color.WHITE);
                 g.drawOval(screenX - size / 2, screenY - size / 2, size, size);
+            }
+        }
+
+        // Route stops are thinned in screen-space when zoomed out to avoid clutter.
+        int minRouteDistancePx = routeStopMinDistancePx(zoom);
+        List<Point2D> renderedRouteStops = new ArrayList<>();
+        int lastIndex = routeStops.size() - 1;
+        for (int i = 0; i < routeStops.size(); i++) {
+            Stop stop = routeStops.get(i);
+            if (stop == null) continue;
+
+            boolean forceRender = (i == 0 || i == lastIndex);
+
+            GeoPosition pos = new GeoPosition(stop.getStopLat(), stop.getStopLon());
+            Point2D worldPt = map.getTileFactory().geoToPixel(pos, zoom);
+            int screenX = (int) (worldPt.getX() - viewport.getX());
+            int screenY = (int) (worldPt.getY() - viewport.getY());
+
+            if (screenX < -size || screenX > map.getWidth() + size ||
+                    screenY < -size || screenY > map.getHeight() + size) {
+                continue;
+            }
+
+            if (!forceRender && minRouteDistancePx > 0
+                    && isTooClose(screenX, screenY, renderedRouteStops, minRouteDistancePx)) {
+                continue;
+            }
+
+            if (icon != null) {
+                g.drawImage(icon, screenX - size / 2, screenY - size / 2, size, size, null);
+            } else {
+                g.setColor(new Color(220, 50, 50));
+                g.fillOval(screenX - size / 2, screenY - size / 2, size, size);
+                g.setColor(Color.WHITE);
+                g.drawOval(screenX - size / 2, screenY - size / 2, size, size);
+            }
+
+            if (minRouteDistancePx > 0) {
+                renderedRouteStops.add(new Point2D.Double(screenX, screenY));
             }
         }
     }
@@ -161,7 +203,7 @@ public class MapOverlayManager {
         for (BusWaypoint wp : busWaypoints) {
             if (wp == null || wp.getPosition() == null) continue;
             
-            if (busRouteFilter != null && !isSameRouteId(wp.getRouteId(), busRouteFilter)) {
+            if (busRouteFilter != null && !matchesRouteFilter(busRouteFilter, wp.getRouteId())) {
                 continue;
             }
             if (busDirectionFilter != null && wp.getDirectionId() != busDirectionFilter) {
@@ -198,6 +240,25 @@ public class MapOverlayManager {
             return small ? tramIconSmall : tramIcon;
         }
         return small ? busIconSmall : busIcon;
+    }
+
+    private static int routeStopMinDistancePx(int zoom) {
+        if (zoom >= 8) return 48;
+        if (zoom >= 7) return 34;
+        if (zoom >= 6) return 24;
+        return 0;
+    }
+
+    private static boolean isTooClose(int x, int y, List<Point2D> points, int minDistancePx) {
+        int minDistance2 = minDistancePx * minDistancePx;
+        for (Point2D p : points) {
+            double dx = x - p.getX();
+            double dy = y - p.getY();
+            if ((dx * dx + dy * dy) < minDistance2) {
+                return true;
+            }
+        }
+        return false;
     }
     
     public static void setBusRouteFilter(String routeId) {
@@ -289,10 +350,13 @@ public class MapOverlayManager {
                     continue;
                 }
 
-                Trip trip = findTrip(vp.getTripId());
+                String vpRouteId = trimToNull(vp.getRouteId());
+                Integer vpDirection = vp.getDirectionId() >= 0 ? vp.getDirectionId() : null;
+                Trip trip = findTrip(vp.getTripId(), vpRouteId, vpDirection);
+
                 String headsign = (trip != null) ? trip.getTripHeadsign() : vp.getTripId();
-                String routeId = trimToNull((trip != null) ? trip.getRouteId() : vp.getRouteId());
-                int directionId = (trip != null) ? trip.getDirectionId() : vp.getDirectionId();
+                String routeId = vpRouteId != null ? vpRouteId : trimToNull((trip != null) ? trip.getRouteId() : null);
+                int directionId = vpDirection != null ? vpDirection : (trip != null ? trip.getDirectionId() : -1);
 
                 if (routeId == null) {
                     continue;
@@ -334,29 +398,81 @@ public class MapOverlayManager {
             String staticTripId = trip.getTripId();
             if (staticTripId == null || staticTripId.isBlank()) continue;
 
-            tripByExactId.putIfAbsent(staticTripId, trip);
+            tripByExactId.computeIfAbsent(staticTripId, k -> new ArrayList<>()).add(trip);
             String normalized = TripIdUtils.normalizeSimple(staticTripId);
             if (normalized != null && !normalized.isBlank()) {
-                tripByNormalizedId.putIfAbsent(normalized, trip);
+                tripByNormalizedId.computeIfAbsent(normalized, k -> new ArrayList<>()).add(trip);
             }
         }
     }
 
-    private static Trip findTrip(String tripId) {
+    private static Trip findTrip(String tripId, String routeId, Integer directionId) {
         if (tripId == null || tripId.isBlank()) return null;
 
-        Trip exact = tripByExactId.get(tripId);
+        Trip exact = chooseBestCandidate(tripByExactId.get(tripId), routeId, directionId);
         if (exact != null) {
             return exact;
         }
 
+        Set<Trip> candidates = new LinkedHashSet<>();
         Set<String> rtVariants = TripIdUtils.generateVariants(tripId);
         for (String variant : rtVariants) {
-            Trip normalized = tripByNormalizedId.get(variant);
-            if (normalized != null) {
-                return normalized;
+            List<Trip> normalized = tripByNormalizedId.get(variant);
+            if (normalized != null && !normalized.isEmpty()) {
+                candidates.addAll(normalized);
             }
         }
+        return chooseBestCandidate(new ArrayList<>(candidates), routeId, directionId);
+    }
+
+    private static Trip chooseBestCandidate(List<Trip> candidates, String routeId, Integer directionId) {
+        if (candidates == null || candidates.isEmpty()) return null;
+
+        String preferredRoute = trimToNull(routeId);
+        if (preferredRoute != null) {
+            List<Trip> routeMatches = new ArrayList<>();
+            for (Trip t : candidates) {
+                if (t == null || t.getRouteId() == null) continue;
+                if (preferredRoute.equalsIgnoreCase(t.getRouteId().trim())) {
+                    routeMatches.add(t);
+                }
+            }
+            if (routeMatches.size() == 1) {
+                return routeMatches.get(0);
+            }
+            if (routeMatches.size() > 1) {
+                if (directionId != null && directionId >= 0) {
+                    List<Trip> directional = new ArrayList<>();
+                    for (Trip t : routeMatches) {
+                        if (t != null && t.getDirectionId() == directionId) {
+                            directional.add(t);
+                        }
+                    }
+                    if (directional.size() == 1) {
+                        return directional.get(0);
+                    }
+                }
+                return null;
+            }
+            return null;
+        }
+
+        if (candidates.size() == 1) {
+            return candidates.get(0);
+        }
+
+        if (directionId != null && directionId >= 0) {
+            List<Trip> directional = new ArrayList<>();
+            for (Trip t : candidates) {
+                if (t != null && t.getDirectionId() == directionId) {
+                    directional.add(t);
+                }
+            }
+            if (directional.size() == 1) {
+                return directional.get(0);
+            }
+        }
+
         return null;
     }
 
@@ -366,23 +482,14 @@ public class MapOverlayManager {
         return trimmed.isEmpty() ? null : trimmed;
     }
 
-    private static boolean isSameRouteId(String left, String right) {
-        if (left == null || right == null) return false;
-        return normalizeRouteId(left).equalsIgnoreCase(normalizeRouteId(right));
-    }
+    private static boolean matchesRouteFilter(String filterRouteId, String candidateRouteId) {
+        if (filterRouteId == null || candidateRouteId == null) return false;
 
-    private static String normalizeRouteId(String routeId) {
-        String trimmed = routeId == null ? "" : routeId.trim();
-        if (trimmed.isEmpty()) return trimmed;
-        if (!trimmed.chars().allMatch(Character::isDigit)) {
-            return trimmed.toUpperCase();
-        }
+        String filter = filterRouteId.trim();
+        String candidate = candidateRouteId.trim();
+        if (filter.isEmpty() || candidate.isEmpty()) return false;
 
-        int i = 0;
-        while (i < trimmed.length() - 1 && trimmed.charAt(i) == '0') {
-            i++;
-        }
-        return trimmed.substring(i);
+        return filter.equalsIgnoreCase(candidate);
     }
 
     public static void setVisibleStops(List<Stop> stops) {

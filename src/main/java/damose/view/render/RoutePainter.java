@@ -73,17 +73,7 @@ public class RoutePainter implements Painter<JXMapViewer> {
         g2.setStroke(new BasicStroke(lineWidth, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND));
         drawPolyline(g2, screenPoints);
 
-        for (Point2D pt : screenPoints) {
-            int size = 10;
-            int x = (int) pt.getX() - size / 2;
-            int y = (int) pt.getY() - size / 2;
-
-            g2.setColor(Color.WHITE);
-            g2.fillOval(x, y, size, size);
-            g2.setColor(outlineColor);
-            g2.setStroke(new BasicStroke(2));
-            g2.drawOval(x, y, size, size);
-        }
+        drawRouteNodes(g2, screenPoints, map.getZoom());
 
         g2.dispose();
     }
@@ -100,6 +90,58 @@ public class RoutePainter implements Painter<JXMapViewer> {
         }
 
         g.drawPolyline(xPoints, yPoints, points.size());
+    }
+
+    private void drawRouteNodes(Graphics2D g, List<Point2D> points, int zoom) {
+        if (points == null || points.isEmpty()) return;
+
+        int size;
+        if (zoom >= 8) size = 4;
+        else if (zoom >= 7) size = 6;
+        else if (zoom >= 6) size = 8;
+        else size = 10;
+
+        int minDistance;
+        if (zoom >= 8) minDistance = 42;
+        else if (zoom >= 7) minDistance = 30;
+        else if (zoom >= 6) minDistance = 20;
+        else minDistance = 0;
+
+        List<Point2D> kept = new ArrayList<>();
+        int lastIndex = points.size() - 1;
+        for (int i = 0; i < points.size(); i++) {
+            Point2D pt = points.get(i);
+            boolean forceRender = (i == 0 || i == lastIndex);
+
+            if (!forceRender && minDistance > 0 && isTooClose(pt, kept, minDistance)) {
+                continue;
+            }
+
+            int x = (int) pt.getX() - size / 2;
+            int y = (int) pt.getY() - size / 2;
+
+            g.setColor(Color.WHITE);
+            g.fillOval(x, y, size, size);
+            g.setColor(outlineColor);
+            g.setStroke(new BasicStroke(2));
+            g.drawOval(x, y, size, size);
+
+            if (minDistance > 0) {
+                kept.add(pt);
+            }
+        }
+    }
+
+    private boolean isTooClose(Point2D point, List<Point2D> kept, int minDistance) {
+        int minDistance2 = minDistance * minDistance;
+        for (Point2D k : kept) {
+            double dx = point.getX() - k.getX();
+            double dy = point.getY() - k.getY();
+            if ((dx * dx + dy * dy) < minDistance2) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public boolean hasRoute() {

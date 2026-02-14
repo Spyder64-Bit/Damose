@@ -425,11 +425,6 @@ public class RouteSidePanel extends JPanel {
                 }
             }
 
-            g2.setColor(AppConstants.TEXT_SECONDARY);
-            g2.setFont(new Font("Segoe UI", Font.PLAIN, 10));
-            g2.drawString("Start", LEFT_PADDING + 2, topY - 8);
-            g2.drawString("End", LEFT_PADDING + 2, bottomY + 16);
-
             g2.dispose();
         }
     }

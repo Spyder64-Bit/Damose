@@ -432,6 +432,7 @@ public class MainController {
                 MapOverlayManager.setBusRouteFilter(routeId);
                 MapOverlayManager.setBusDirectionFilter(directionId);
                 refreshMapOverlay();
+                fitMapToRoute(routeStops);
             });
         }, "route-direction-" + routeId + "-" + directionId).start();
     }
@@ -471,35 +472,106 @@ public class MainController {
     }
 
     private void fitMapToRoute(List<Stop> routeStops) {
-        if (routeStops == null || routeStops.isEmpty()) return;
+        if (routeStops == null || routeStops.size() < 2) return;
 
-        double minLat = Double.MAX_VALUE, maxLat = -Double.MAX_VALUE;
-        double minLon = Double.MAX_VALUE, maxLon = -Double.MAX_VALUE;
+        JXMapViewer mapViewer = view.getMapViewer();
+        if (mapViewer == null || mapViewer.getTileFactory() == null) return;
 
-        for (Stop s : routeStops) {
-            minLat = Math.min(minLat, s.getStopLat());
-            maxLat = Math.max(maxLat, s.getStopLat());
-            minLon = Math.min(minLon, s.getStopLon());
-            maxLon = Math.max(maxLon, s.getStopLon());
+        int mapWidth = Math.max(1, mapViewer.getWidth());
+        int mapHeight = Math.max(1, mapViewer.getHeight());
+
+        int outerPaddingPx = 38;
+        int reservedRightPx = activeRoutePanelId != null ? Math.min(300, Math.max(190, mapWidth / 5)) : 0;
+
+        int usableWidth = Math.max(220, mapWidth - reservedRightPx - (outerPaddingPx * 2));
+        int usableHeight = Math.max(180, mapHeight - (outerPaddingPx * 2));
+
+        int targetZoom = findBestZoomForRoute(routeStops, mapViewer, usableWidth, usableHeight, 1, 17);
+        if (targetZoom > 1) {
+            Point2D tighterSpan = computeRouteBoundsSpan(routeStops, mapViewer, targetZoom - 1);
+            if (tighterSpan != null
+                    && tighterSpan.getX() <= usableWidth * 1.08
+                    && tighterSpan.getY() <= usableHeight * 1.08) {
+                targetZoom = targetZoom - 1;
+            }
+        }
+        Point2D boundsCenter = computeRouteBoundsCenter(routeStops, mapViewer, targetZoom);
+        if (boundsCenter == null) return;
+
+        double visibleCenterX = outerPaddingPx + usableWidth / 2.0;
+        double mapCenterX = mapWidth / 2.0;
+        double shiftToVisibleArea = mapCenterX - visibleCenterX;
+
+        Point2D targetCenterWorld = new Point2D.Double(
+                boundsCenter.getX() + shiftToVisibleArea,
+                boundsCenter.getY()
+        );
+        GeoPosition targetCenterGeo = mapViewer.getTileFactory().pixelToGeo(targetCenterWorld, targetZoom);
+
+        MapAnimator.flyTo(mapViewer, targetCenterGeo, targetZoom, 3000, null);
+    }
+
+    private int findBestZoomForRoute(List<Stop> routeStops,
+                                     JXMapViewer mapViewer,
+                                     int maxSpanX,
+                                     int maxSpanY,
+                                     int minZoom,
+                                     int maxZoom) {
+        for (int zoom = minZoom; zoom <= maxZoom; zoom++) {
+            Point2D span = computeRouteBoundsSpan(routeStops, mapViewer, zoom);
+            if (span == null) continue;
+
+            if (span.getX() <= maxSpanX && span.getY() <= maxSpanY) {
+                return zoom;
+            }
+        }
+        return maxZoom;
+    }
+
+    private Point2D computeRouteBoundsCenter(List<Stop> routeStops, JXMapViewer mapViewer, int zoom) {
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
+
+        for (Stop stop : routeStops) {
+            if (stop == null) continue;
+            GeoPosition pos = new GeoPosition(stop.getStopLat(), stop.getStopLon());
+            Point2D world = mapViewer.getTileFactory().geoToPixel(pos, zoom);
+            minX = Math.min(minX, world.getX());
+            minY = Math.min(minY, world.getY());
+            maxX = Math.max(maxX, world.getX());
+            maxY = Math.max(maxY, world.getY());
         }
 
-        int middleIndex = routeStops.size() / 2;
-        Stop middleStop = routeStops.get(middleIndex);
-        GeoPosition centerPos = new GeoPosition(middleStop.getStopLat(), middleStop.getStopLon());
+        if (!Double.isFinite(minX) || !Double.isFinite(minY) || !Double.isFinite(maxX) || !Double.isFinite(maxY)) {
+            return null;
+        }
 
-        double latDiff = maxLat - minLat;
-        double lonDiff = maxLon - minLon;
-        double maxDiff = Math.max(latDiff, lonDiff);
+        return new Point2D.Double((minX + maxX) / 2.0, (minY + maxY) / 2.0);
+    }
 
-        int zoom;
-        if (maxDiff > 0.3) zoom = 8;
-        else if (maxDiff > 0.15) zoom = 7;
-        else if (maxDiff > 0.08) zoom = 6;
-        else if (maxDiff > 0.04) zoom = 5;
-        else if (maxDiff > 0.02) zoom = 4;
-        else zoom = 3;
+    private Point2D computeRouteBoundsSpan(List<Stop> routeStops, JXMapViewer mapViewer, int zoom) {
+        double minX = Double.POSITIVE_INFINITY;
+        double minY = Double.POSITIVE_INFINITY;
+        double maxX = Double.NEGATIVE_INFINITY;
+        double maxY = Double.NEGATIVE_INFINITY;
 
-        MapAnimator.flyTo(view.getMapViewer(), centerPos, zoom, 3000, null);
+        for (Stop stop : routeStops) {
+            if (stop == null) continue;
+            GeoPosition pos = new GeoPosition(stop.getStopLat(), stop.getStopLon());
+            Point2D world = mapViewer.getTileFactory().geoToPixel(pos, zoom);
+            minX = Math.min(minX, world.getX());
+            minY = Math.min(minY, world.getY());
+            maxX = Math.max(maxX, world.getX());
+            maxY = Math.max(maxY, world.getY());
+        }
+
+        if (!Double.isFinite(minX) || !Double.isFinite(minY) || !Double.isFinite(maxX) || !Double.isFinite(maxY)) {
+            return null;
+        }
+
+        return new Point2D.Double(maxX - minX, maxY - minY);
     }
 
     private void showFloatingArrivals(Stop stop) {
@@ -544,10 +616,13 @@ public class MainController {
         for (VehiclePosition vp : positions) {
             if (vp == null || vp.getPosition() == null) continue;
 
-            Trip trip = dataContext.getTripMatcher().matchByTripId(vp.getTripId());
-            String effectiveRouteId = trip != null ? trip.getRouteId() : vp.getRouteId();
-            int effectiveDirection = trip != null ? trip.getDirectionId() : vp.getDirectionId();
-            if (!isSameRouteId(routeId, effectiveRouteId)) continue;
+            Integer vpDirection = vp.getDirectionId() >= 0 ? vp.getDirectionId() : null;
+            String vpRouteId = trimToNull(vp.getRouteId());
+            Trip trip = dataContext.getTripMatcher().matchByTripIdAndRoute(vp.getTripId(), vpRouteId, vpDirection);
+
+            String effectiveRouteId = vpRouteId != null ? vpRouteId : (trip != null ? trimToNull(trip.getRouteId()) : null);
+            int effectiveDirection = vpDirection != null ? vpDirection : (trip != null ? trip.getDirectionId() : -1);
+            if (!matchesRouteFilter(routeId, effectiveRouteId)) continue;
             if (directionFilter != null && effectiveDirection != directionFilter) continue;
 
             double progress = computeRouteProgress(vp.getPosition(), routeStops);
@@ -582,25 +657,20 @@ public class MainController {
         return shortName.isEmpty() ? route.getRouteId() : shortName;
     }
 
-    private static boolean isSameRouteId(String left, String right) {
-        if (left == null || right == null) return false;
-        String a = normalizeRouteId(left);
-        String b = normalizeRouteId(right);
-        return a.equalsIgnoreCase(b);
+    private static boolean matchesRouteFilter(String filterRouteId, String candidateRouteId) {
+        if (filterRouteId == null || candidateRouteId == null) return false;
+
+        String filter = filterRouteId.trim();
+        String candidate = candidateRouteId.trim();
+        if (filter.isEmpty() || candidate.isEmpty()) return false;
+
+        return filter.equalsIgnoreCase(candidate);
     }
 
-    private static String normalizeRouteId(String routeId) {
-        String trimmed = routeId == null ? "" : routeId.trim();
-        if (trimmed.isEmpty()) return trimmed;
-        if (!trimmed.chars().allMatch(Character::isDigit)) {
-            return trimmed.toUpperCase();
-        }
-
-        int i = 0;
-        while (i < trimmed.length() - 1 && trimmed.charAt(i) == '0') {
-            i++;
-        }
-        return trimmed.substring(i);
+    private static String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private static double computeRouteProgress(GeoPosition pos, List<Stop> routeStops) {

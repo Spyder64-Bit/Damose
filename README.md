@@ -1,4 +1,30 @@
-# Damose 0.3
+# Damose
+
+## Come Installare?
+
+### Opzione 1: EXE (Windows)
+1. Genera i pacchetti:
+```bash
+mvn clean package
+```
+2. Crea l'installer `.exe` con `jpackage` (JDK 17 + WiX Toolset 3.x richiesti):
+```bash
+jpackage --type exe --name Damose --input target --main-jar damose-bus-tracker-1.0.0.jar --main-class damose.app.DamoseApp --dest target/installer
+```
+3. Avvia:
+`target/installer/Damose-1.0.exe`
+
+### Opzione 2: JAR (cross-platform)
+1. Genera il jar eseguibile:
+```bash
+mvn clean package
+```
+2. Avvia:
+```bash
+java -jar target/damose-bus-tracker-1.0.0.jar
+```
+
+Nota: il file `.exe` e il `.jar` vengono prodotti in locale nella cartella `target/`.
 
 Applicazione desktop Java per il monitoraggio del trasporto pubblico di Roma, basata su:
 - dati GTFS statici (`stops`, `trips`, `stop_times`, `calendar_dates`);
@@ -20,6 +46,9 @@ Applicazione desktop Java per il monitoraggio del trasporto pubblico di Roma, ba
 - Preferiti (fermate/linee).
 - Modalita online/offline.
 - Vista "tutte le corse del giorno" nel pannello fermata.
+- Overlay info integrato con link cliccabili.
+- Filtro route/vehicle migliorato per ridurre mismatch realtime.
+- Rendering mappa migliorato: meno sovrapposizioni waypoint e fit linea piu stabile.
 
 ## Architettura
 Il progetto segue una struttura a livelli:
@@ -141,3 +170,4 @@ mvn exec:java
 ## Documentazione Aggiuntiva
 - `docs/Relazione_Tecnica.pdf`: relazione tecnica del progetto.
 - `docs/javadoc/index.html`: documentazione API generata.
+- `docs/ClassDiagram_Structured.pdf`: diagramma classi strutturato (versione aggiornata).

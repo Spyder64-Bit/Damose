@@ -4,6 +4,7 @@ import java.awt.BasicStroke;
 import java.awt.Color;
 import java.awt.Cursor;
 import java.awt.Dimension;
+import java.awt.Font;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -38,6 +39,7 @@ import damose.config.AppConstants;
 import damose.model.Stop;
 import damose.view.component.ConnectionButton;
 import damose.view.component.FloatingArrivalPanel;
+import damose.view.component.InfoOverlay;
 import damose.view.component.RouteSidePanel;
 import damose.view.component.SearchOverlay;
 import damose.view.component.ServiceQualityPanel;
@@ -57,9 +59,11 @@ public class MainView {
     private JButton maxButton;
     private JButton minButton;
     private JButton busToggleButton;
+    private JButton infoButton;
     private JPanel mapControlsPanel;
     private ConnectionButton connectionButton;
     private SearchOverlay searchOverlay;
+    private InfoOverlay infoOverlay;
     private JPanel overlayPanel;
     private FloatingArrivalPanel floatingPanel;
     private RouteSidePanel routeSidePanel;
@@ -74,8 +78,8 @@ public class MainView {
     private static final int LEFT_STACK_X = 10;
     private static final int LEFT_STACK_Y = 10;
     private static final int MAP_CONTROLS_WIDTH = 58;
-    private static final int MAP_CONTROLS_HEIGHT = 225;
-    private static final int ROUTE_PANEL_WIDTH = 340;
+    private static final int MAP_CONTROLS_HEIGHT = 280;
+    private static final int ROUTE_PANEL_WIDTH = 290;
     private static final int ROUTE_PANEL_TOP = 48;
     private static final int ROUTE_PANEL_MARGIN = 12;
     private static final int WINDOW_CONTROL_SIZE = 34;
@@ -124,6 +128,16 @@ public class MainView {
     
     public ConnectionButton getConnectionButton() {
         return connectionButton;
+    }
+
+    public JButton getInfoButton() {
+        return infoButton;
+    }
+
+    public void showInfoOverlay() {
+        if (infoOverlay != null) {
+            infoOverlay.showInfo();
+        }
     }
 
     public JXMapViewer getMapViewer() {
@@ -248,6 +262,11 @@ public class MainView {
                 ConnectionButton.BUTTON_WIDTH,
                 ConnectionButton.BUTTON_HEIGHT);
         mapControlsPanel.add(connectionButton);
+
+        infoButton = createInfoButton();
+        infoButton.setBounds(5, 225, 48, 48);
+        infoButton.addActionListener(e -> showInfoOverlay());
+        mapControlsPanel.add(infoButton);
         
         // Service quality panel (top-left, next to connection card)
         serviceQualityPanel = new ServiceQualityPanel();
@@ -263,6 +282,9 @@ public class MainView {
                 overlayPanel.setBounds(0, 0, w, h);
                 if (searchOverlay != null) {
                     searchOverlay.setBounds(0, 0, w, h);
+                }
+                if (infoOverlay != null) {
+                    infoOverlay.setBounds(0, 0, w, h);
                 }
                 // Update button positions
                 updateWindowControlPositions(w);
@@ -294,6 +316,11 @@ public class MainView {
         searchOverlay.setVisible(false);
         searchOverlay.setBounds(0, 0, 1100, 750);
         layeredPane.add(searchOverlay, JLayeredPane.POPUP_LAYER);
+
+        infoOverlay = new InfoOverlay();
+        infoOverlay.setVisible(false);
+        infoOverlay.setBounds(0, 0, 1100, 750);
+        layeredPane.add(infoOverlay, JLayeredPane.POPUP_LAYER);
         
         routeSidePanel = new RouteSidePanel();
         routeSidePanel.setVisible(false);
@@ -447,6 +474,27 @@ public class MainView {
                 btn.repaint();
             }
         });
+        return btn;
+    }
+
+    private JButton createInfoButton() {
+        JButton btn = new JButton();
+        Image infoImage = loadTrimmedImage("/sprites/info.png");
+        if (infoImage != null) {
+            Image scaledInfo = infoImage.getScaledInstance(40, 40, Image.SCALE_SMOOTH);
+            btn.setIcon(new ImageIcon(scaledInfo));
+        } else {
+            btn.setText("i");
+            btn.setFont(new Font("Segoe UI", Font.BOLD, 22));
+            btn.setForeground(new Color(220, 220, 230));
+        }
+        btn.setContentAreaFilled(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.setOpaque(false);
+        btn.setToolTipText("Legenda e informazioni");
+
         return btn;
     }
     
