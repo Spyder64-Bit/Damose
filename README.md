@@ -70,7 +70,7 @@ Il progetto segue una struttura a livelli:
 - `model`: entita dominio.
 - `database`: persistenza utente/sessione/preferiti.
 
-### UML Class Diagram (Detailed, post-refactor)
+### UML Class Diagram 
 ```mermaid
 classDiagram
     direction LR
